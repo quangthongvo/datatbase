@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS assignment_03;
-CREATE DATABASE assignment_03;
-USE assignment_03;
+DROP DATABASE IF EXISTS assignment_04;
+CREATE DATABASE assignment_04;
+USE assignment_04;
 
 -- Tạo bảng department
 DROP TABLE IF EXISTS department;
@@ -239,3 +239,172 @@ VALUES        (1     , 1   ),
               (8     , 8   ),
               (9     , 2   ),
               (10    , 10  );
+              
+-- Question 1: Viết lệnh để lấy ra danh sách nhân viên và thông tin phòng ban của họ
+SELECT*
+FROM account
+INNER JOIN department USING (department_id);
+-- Question 2: Viết lệnh để lấy ra thông tin các account được tạo sau ngày 20/12/2010
+SELECT * 
+FROM account
+JOIN department USING (department_id)
+JOIN position USING (position_id)
+WHERE created_date > "2010-12-20"
+;
+-- Question 3: Viết lệnh để lấy ra tất cả các developer
+SELECT *
+FROM account
+JOIN position USING (position_id)
+WHERE position_name = "Dev";
+-- Question 4: Viết lệnh để lấy ra danh sách các phòng ban có >3 nhân viên
+SELECT department.*
+FROM account
+JOIN department USING (department_id)
+GROUP BY department_id
+HAVING COUNT(department_id) > 3;
+
+-- Question 5: Viết lệnh để lấy ra danh sách câu hỏi được sử dụng trong đề thi nhiều nhất
+SELECT question.*
+FROM question
+JOIN exam_question USING (question_id)
+GROUP BY question_id
+ORDER BY COUNT(exam_id) DESC
+LIMIT 1;
+-- Question 6: Thông kê mỗi category Question được sử dụng trong bao nhiêu Question
+SELECT category_question.*, COUNT(question_id) AS question_count
+FROM question
+RIGHT JOIN category_question USING (category_id)
+GROUP BY category_id;
+
+-- Question 7: Thông kê mỗi Question được sử dụng trong bao nhiêu Exam
+SELECT question.*, COUNT(exam_id) AS exam_count
+FROM question
+LEFT JOIN exam_question USING (question_id)
+GROUP BY question_id;
+-- Question 8: Lấy ra Question có nhiều câu trả lời nhất
+SELECT question.*
+FROM answer
+INNER JOIN question USING (question_id)
+GROUP BY question_id
+ORDER BY COUNT(answer_id) DESC
+LIMIT 1;
+
+-- Question 9: Thống kê số lượng account trong mỗi group
+SELECT account.*, COUNT(group_id) AS group_count
+FROM account
+LEFT JOIN group_account USING (account_id)
+GROUP BY account_id;
+-- Question 10: Tìm chức vụ có ít người nhất
+SELECT `group`.*
+FROM group_account
+INNER JOIN `group` USING (group_id)
+GROUP BY account_id
+ORDER BY COUNT(group_id) ASC
+LIMIT 1;
+-- Question 11: Thống kê mỗi phòng ban có bao nhiêu dev, test, scrum master, PM
+SELECT position_name,department_name, COUNT(account_id) AS accoun_count
+FROM department
+CROSS JOIN position
+LEFT JOIN account USING (department_id,position_id)
+GROUP BY position_name, department_name;
+
+-- Question 12: Lấy thông tin chi tiết của câu hỏi bao gồm: thông tin cơ bản của
+-- question, loại câu hỏi, ai là người tạo ra câu hỏi, câu trả lời là gì, …
+SELECT *
+FROM question
+JOIN type_question USING (type_id)
+JOIN account ON creator_id = account_id
+JOIN answer USING (question_id);
+
+
+-- Question 13: Lấy ra số lượng câu hỏi của mỗi loại tự luận hay trắc nghiệm
+SELECT type_question.*,COUNT(question_id) AS question_count
+FROM type_question
+LEFT JOIN question USING (type_id)
+GROUP BY type_id; 
+
+-- Question 14:Lấy ra group không có account nào
+-- Question 15: Lấy ra group không có account nào
+SELECT `group`.*
+FROM `group`
+LEFT JOIN group_account USING (group_id)
+WHERE account_id IS NULl;
+
+
+
+-- Question 16: Lấy ra question không có answer nào.
+SELECT question.*
+FROM question
+LEFT JOIN answer USING (question_id)
+WHERE answer_id IS NULL;
+
+ -- Question 17:
+-- a) Lấy các account thuộc nhóm thứ 1
+SELECT account.*
+FROM group_account
+JOIN account USING ( account_id)
+WHERE group_id = 1;
+
+-- b) Lấy các account thuộc nhóm thứ 2
+SELECT account.*
+FROM group_account
+JOIN account USING ( account_id)
+WHERE group_id = 2;
+-- c) Ghép 2 kết quả từ câu a) và câu b) sao cho không có record nào trùng nhau
+SELECT account.*
+FROM group_account
+JOIN account USING ( account_id)
+WHERE group_id = 1
+UNION
+SELECT account.*
+FROM group_account
+JOIN account USING ( account_id)
+WHERE group_id = 2;
+-- Question 18:
+-- a) Lấy các group có lớn hơn 5 thành viên
+SELECT `group`.*, COUNT(account_id)
+FROM `group`
+JOIN group_account USING (group_id)
+GROUP BY group_id
+HAVING COUNT(account_id) > 5;
+-- b) Lấy các group có nhỏ hơn 7 thành viên
+SELECT `group`.*, COUNT(account_id)
+FROM `group`
+JOIN group_account USING (group_id)
+GROUP BY group_id
+HAVING COUNT(account_id) < 7;
+-- c) Ghép 2 kết quả từ câu a) và câu b).
+SELECT `group`.*, COUNT(account_id)
+FROM `group`
+JOIN group_account USING (group_id)
+GROUP BY group_id
+HAVING COUNT(account_id) > 5
+UNION
+SELECT `group`.*, COUNT(account_id)
+FROM `group`
+JOIN group_account USING (group_id)
+GROUP BY group_id
+HAVING COUNT(account_id) < 7;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
