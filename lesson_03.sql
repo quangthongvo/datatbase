@@ -52,6 +52,61 @@ WHERE department_name LIKE "%n%";
  FROM department
  LIMIT 6,3;-- start:phan tu bat dau lay,number: 
 
+-- ORDER BY : sắp xếp
+-- ASC, desc
+-- mac dinh ASC
+ SELECT *
+ FROM exam
+ ORDER BY duration DESC,created_date ASC;
+ -- ham tong hop 
+ -- COUNT(*): dem so dong 
+ SELECT COUNT(*) AS exam_COUNT
+ FROM exam ;
+ -- COUNT(id): dem so dong ma id IS NOT NULL 
+ 
+ INSERT INTO exam (exam_id, code, title, category_id, duration, creator_id)
+VALUES 			 ('11', 'VTIQ011', 'Đề thi MySQL', '2', null, '9');
+ 
+-- SUM,MAX,MIN,AVG
+SELECT 
+  SUM(duration),
+  MAX(duration),
+  MIN(duration),
+  AVG(duration)
+FROM exam;
+
+-- menh de GROUP BY
+SELECT duration, COUNT(exam_id) AS exam_count
+FROM exam
+GROUP BY duration;
+
+SELECT duration, create_date, COUNT(exam_id) AS exam_count
+FROM exam
+GROUP BY duration,create_date
+ORDER BY duration,created_date;
+
+
+-- menh de HAVING 
+SELECT duration, created_date, COUNT(exam_id) AS exam_count
+FROM exam
+GROUP BY duration,created_date
+HAVING COUNT(exam_id) > 1
+ORDER BY duration,created_date;
+-- cap nhat du lieu
+UPDATE department
+SET department_name = " phong cho"
+WHERE department_id = 1;
+-- xoa du lieu
+DELETE FROM exam
+WHERE duration IS NULL;
+
+
+
+
+
+
+
+
 
 
 

@@ -306,6 +306,6 @@ SET full_name = " nguyen ba loc ", email = " loc.nguyenba@vti.com.vn "
 WHERE account_id = 5;
 
 -- Question 15: update account có id = 5 sẽ thuộc group có id = 4
-UPDATE account
+UPDATE group_account
 SET group_id = 4
-WHERE group_id = 5;
+WHERE account_id = 5;

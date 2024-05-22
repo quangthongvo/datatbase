@@ -270,6 +270,31 @@ LEFT JOIN exam_question USING (question_id)
 GROUP BY question_id
 ORDER BY COUNT(exam_id) DESC
 LIMIT 1;
+-- SUBQUERY
+CREATE OR REPLACE VIEW view_01 AS
+SELECT question.*
+FROM question
+LEFT JOIN exam_question USING (question_id)
+GROUP BY question_id 
+HAVING COUNT(question_id) = (
+SELECT MAX(exam_count)
+FROM (
+SELECT COUNT(exam_id) AS exam_count
+FROM question
+LEFT JOIN exam_question USING (question_id)
+GROUP BY question_id ) AS t);
+-- CTE
+WITH c2 AS (
+SELECT question.*, COUNT(exam_id) AS exam_count
+FROM question
+LEFT JOIN exam_question USING (question_id)
+GROUP BY question_id 
+)
+SELECT *
+FROM c2
+WHERE exam_count = (
+SELECT MAX(exam_count)
+FROM c2);
 -- Question 6: Thông kê mỗi category Question được sử dụng trong bao nhiêu Question
 SELECT category_question.*, COUNT(question_id) AS question_count
 FROM question
@@ -282,32 +307,89 @@ FROM question
 LEFT JOIN exam_question USING (question_id)
 GROUP BY question_id;
 -- Question 8: Lấy ra Question có nhiều câu trả lời nhất
-SELECT question.*
+SELECT question.*,COUNT(answer_id) AS answer_count
 FROM answer
 INNER JOIN question USING (question_id)
 GROUP BY question_id
 ORDER BY COUNT(answer_id) DESC
 LIMIT 1;
-
+-- SUBQUERY
+CREATE OR REPLACE VIEW view_02 AS
+SELECT question.*
+FROM answer
+INNER JOIN question USING (question_id)
+GROUP BY question_id
+HAVING count(question_id) = (
+SELECT MAX(answer_count)
+FROM (
+     SELECT COUNT(answer_id) AS answer_count
+     FROM answer
+     INNER JOIN question USING (question_id)
+     GROUP BY question_id) AS t);
+-- CTE
+WITH c1 AS (
+SELECT question.*, COUNT(answer_id) AS answer_count
+     FROM answer
+     INNER JOIN question USING (question_id)
+     GROUP BY question_id
+)
+SELECT *
+FROM c1
+WHERE answer_count = (
+SELECT MAX(answer_count)
+FROM c1 );
 -- Question 9: Thống kê số lượng account trong mỗi group
-SELECT account.*, COUNT(group_id) AS group_count
-FROM account
-LEFT JOIN group_account USING (account_id)
-GROUP BY account_id;
+SELECT `group`.*, COUNT(account_id) AS account_count
+FROM `group`
+LEFT JOIN group_account USING (group_id)
+GROUP BY group_id;
 -- Question 10: Tìm chức vụ có ít người nhất
-SELECT `group`.*
-FROM group_account
-INNER JOIN `group` USING (group_id)
-GROUP BY account_id
-ORDER BY COUNT(group_id) ASC
+SELECT position.*
+FROM position
+LEFT JOIN account USING (position_id)
+GROUP BY position_id
+ORDER BY COUNT(account_id)
 LIMIT 1;
+-- SUBQUERY
+CREATE OR REPLACE VIEW view_03 AS
+SELECT position.*
+FROM position
+LEFT JOIN account USING (position_id)
+GROUP BY position_id
+HAVING count(position_id) = (
+SELECT MIN(account_count)
+FROM (
+     SELECT  COUNT(account_id) AS account_count
+	 FROM position
+     LEFT JOIN account USING (position_id)
+     GROUP BY position_id) AS t);
+-- CTE
+WITH c3 AS (
+SELECT position.*, COUNT(account_id) AS account_count
+	 FROM position
+     LEFT JOIN account USING (position_id)
+     GROUP BY position_id
+)
+SELECT *
+FROM c3
+WHERE account_count = (
+SELECT MIN(account_count)
+FROM c3);
+
+
 -- Question 11: Thống kê mỗi phòng ban có bao nhiêu dev, test, scrum master, PM
 SELECT position_name,department_name, COUNT(account_id) AS accoun_count
 FROM department
 CROSS JOIN position
 LEFT JOIN account USING (department_id,position_id)
 GROUP BY position_name, department_name;
-
+-- c2
+SELECT department_name,position_name, COUNT(account_id) AS account_count
+FROM department
+CROSS JOIN position
+LEFT JOIN account USING (department_id, position_id)
+GROUP BY department_id, position_id;
+alter
 -- Question 12: Lấy thông tin chi tiết của câu hỏi bao gồm: thông tin cơ bản của
 -- question, loại câu hỏi, ai là người tạo ra câu hỏi, câu trả lời là gì, …
 SELECT *
