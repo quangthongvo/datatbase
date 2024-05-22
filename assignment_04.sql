@@ -264,9 +264,9 @@ GROUP BY department_id
 HAVING COUNT(department_id) > 3;
 
 -- Question 5: Viết lệnh để lấy ra danh sách câu hỏi được sử dụng trong đề thi nhiều nhất
-SELECT question.*
+SELECT question.*,COUNT(exam_id) AS exam_count
 FROM question
-JOIN exam_question USING (question_id)
+LEFT JOIN exam_question USING (question_id)
 GROUP BY question_id
 ORDER BY COUNT(exam_id) DESC
 LIMIT 1;
