@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS assignment_05;
-CREATE DATABASE assignment_05;
-USE assignment_05;
+DROP DATABASE IF EXISTS assignment_077;
+CREATE DATABASE assignment_07;
+USE assignment_07;
 
 -- Tạo bảng department
 DROP TABLE IF EXISTS department;
@@ -239,106 +239,209 @@ VALUES        (1     , 1   ),
               (8     , 8   ),
               (9     , 2   ),
               (10    , 10  );
+              
+-- Question 1: Tạo trigger không cho phép người dùng nhập vào Group có ngày tạo trước 1 năm trước
+DROP TRIGGER IF EXISTS trigger_01;
+ DELIMITER $$
+ CREATE TRIGGER trigger_01
+ BEFORE INSERT ON `group`
+ FOR EACH ROW
+ BEGIN
+    IF NEW.created_date < CURRENT_DATE - INTERVAL 1 YEAR THEN
+    SIGNAL SQLSTATE "12345"
+    SET MESSAGE_TEXT = " khong cho phep tao 1 nam truoc";
 
--- Question 1: Tạo view có chứa danh sách nhân viên thuộc phòng ban sale
-CREATE OR REPLACE VIEW view_01 AS
-SELECT *
-FROM department
-WHERE department_id = (
-SELECT department_id
-FROM department
-WHERE department_name = "sale");
--- Question 2: Tạo view có chứa thông tin các account tham gia vào nhiều group nhất
--- SUBQUERY
-CREATE OR REPLACE VIEW view_02 AS
-SELECT account.*
-FROM account
-LEFT JOIN group_account USING (account_id)
-GROUP BY account_id
-HAVING COUNT(group_id) =
-(
-SELECT MAX(group_count)
-FROM(
-     SELECT COUNT(group_id) AS group_count
-	 FROM account
-     LEFT JOIN group_account USING (account_id)
-     GROUP BY account_id)AS t);
--- CTE
-WITH c2 AS(
-SELECT account.*,COUNT(group_id) AS group_count
-FROM account
-LEFT JOIN group_account USING (account_id)
-GROUP BY account_id
-)
-SELECT *
-FROM c2
-WHERE group_count = (
-SELECT MAX(group_count)
-FROM c2);
+    
+    END IF;
+ END $$
+ DELIMITER ;
+-- Question 2: Tạo trigger Không cho phép người dùng thêm bất kỳ user nào vào
+-- department "Sale" nữa, khi thêm thì hiện ra thông báo "Department "Sale" cannot add more user"
+DROP TRIGGER IF EXISTS trigger_02;
+ DELIMITER $$
+ CREATE TRIGGER trigger_02
+ BEFORE INSERT ON account
+ FOR EACH ROW
+ BEGIN
+   DECLARE v_sale_id INT;
+   SELECT department_id INTO v_sale_id
+   FROM department
+   WHERE department_name = "sale";
+   
+   IF NEW.department_id = v_sale_id THEN
+   SIGNAL SQLSTATE "12345"
+   SET MESSAGE_TEXT = " khong cho phep nguoi dung them bat ky user nao vao";
+ END IF;
+END $$
+ DELIMITER ;
+-- Question 3: Cấu hình 1 group có nhiều nhất là 5 user
+DROP TRIGGER IF EXISTS trigger_03;
+ DELIMITER $$
+ CREATE TRIGGER trigger_03
+ BEFORE INSERT ON group_account
+ FOR EACH ROW
+ BEGIN
+ DECLARE v_account_count INT;
+ SELECT COUNT(account_id) INTO v_account_count 
+ FROM group_account
+ WHERE group_id = NEW.group_id;
+ 
+ IF v_account_count >= 5 then
+ SIGNAL SQLSTATE "12345"
+   SET MESSAGE_TEXT = " moi group co nhieu nhat 5 nguoi";
+ END IF;
+ 
+ END $$
+ DELIMITER ;
+-- Question 4: Cấu hình 1 bài thi có nhiều nhất là 10 Question
+DROP TRIGGER IF EXISTS trigger_03;
+ DELIMITER $$
+ CREATE TRIGGER trigger_03
+ BEFORE INSERT ON exam_question
+ FOR EACH ROW
+ BEGIN
+  DECLARE v_question_count INT;
+  SELECT COUNT(question_id) INTO v_question_count
+  FROM exam_question
+  WHERE exam_id = NEW.exam_id;
+  IF v_question_count >= 10 THEN
+ SIGNAL SQLSTATE "12345"
+   SET MESSAGE_TEXT = " moi bai thi cos nhieu nhat 10 question";
+ END IF;
+ END $$
+ DELIMITER ;
+-- Question 5: Tạo trigger không cho phép người dùng xóa tài khoản có email là
+-- admin@gmail.com (đây là tài khoản admin, không cho phép user xóa),
+-- còn lại các tài khoản khác thì sẽ cho phép xóa và sẽ xóa tất cả các thông tin liên quan tới user đó
+
+DROP TRIGGER IF EXISTS trigger_05;
+ DELIMITER $$
+ CREATE TRIGGER trigger_05
+ BEFORE DELETE ON account
+ FOR EACH ROW
+ BEGIN
+     IF OLD.email = "admin@gmail.com" THEN
+     SIGNAL SQLSTATE "12345"
+   SET MESSAGE_TEXT = "tài khoản admin, không cho phép user xóa";
+ END IF;
+ 
+ END $$
+ DELIMITER ;
+-- Question 6: Không sử dụng cấu hình default cho field DepartmentID của table
+-- Account, hãy tạo trigger cho phép người dùng khi tạo account không điền
+-- vào departmentID thì sẽ được phân vào phòng ban "waiting Department"
+DROP TRIGGER IF EXISTS trigger_06;
+ DELIMITER $$
+ CREATE TRIGGER trigger_06
+ BEFORE INSERT ON account
+ FOR EACH ROW
+ BEGIN
+ DECLARE v_department_id INT;
+ 
+ IF NEW.department_id IS NULL THEN
+ SELECT department_id INTO v_department_id
+ FROM department_id
+ WHERE deparment_name = "phong cho";
+ 
+ SET NEW.department_id = v_department_id;
+ END IF;
+ END $$
+ DELIMITER ;
+-- Question 7: Cấu hình 1 bài thi chỉ cho phép user tạo tối đa 4 answers cho mỗi
+-- question, trong đó có tối đa 2 đáp án đúng.
+DROP TRIGGER IF EXISTS trigger_07;
+ DELIMITER $$
+ CREATE TRIGGER trigger_07
+ BEFORE INSERT ON answer
+ FOR EACH ROW
+BEGIN
+ DECLARE answer_count INT;
+ DECLARE correct_answer_count INT;
+ SELECT COUNT(answer_id) INTO answer_count
+ FROM answer
+ WHERE question_id = NEW.question_id;
+ 
+ IF answer_count >= 4 THEN
+ SIGNAL SQLSTATE "12345"
+ SET MESSAGE_TEXT = "cho phép user tạo tối đa 4 answers";
+   END IF;
+   
+ SELECT COUNT(answer_id) INTO correct_answer_count
+ FROM answer
+ WHERE question_id = NEW.question_id AND is_correct = TRUE;
+ 
+ IF correct_answer_count >= 2 THEN
+ SIGNAL SQLSTATE "12345"
+ SET MESSAGE_TEXT = "tối đa 2 đáp án đúng ";
+END IF;
+END $$
+ DELIMITER ;
+
+-- Question 8: Viết trigger sửa lại dữ liệu cho đúng:
+-- Nếu người dùng nhập vào gender của account là nam, nữ, chưa xác định
+-- Thì sẽ đổi lại thành M, F, U cho giống với cấu hình ở database
+
+-- Question 9: Viết trigger không cho phép người dùng xóa bài thi mới tạo được 2 ngày
+DROP TRIGGER IF EXISTS trigger_09;
+ DELIMITER $$
+ CREATE TRIGGER trigger_09
+ BEFORE DELETE ON exam
+ FOR EACH ROW
+BEGIN
+IF OLD.created_date > CURRENT_DATE - INTERVAL 2 DAY THEN
+SIGNAL SQLSTATE "12345"
+ SET MESSAGE_TEXT = "khong the xoa de thi moi tao duoc 2 ngay ";
+END IF;
+
+END $$
+ DELIMITER ;
+-- Question 10: Viết trigger chỉ cho phép người dùng chỉ được update, delete các
+-- question khi question đó chưa nằm trong exam nào
+DROP TRIGGER IF EXISTS trigger_10_update;
+ DELIMITER $$
+ CREATE TRIGGER trigger_10_update
+ BEFORE UPDATE ON question
+ FOR EACH ROW
+BEGIN
+DECLARE exam_count INT;
+SELECT COUNT(exam_id) INTO exam_count
+FROM exam_question
+WHERE question_id = OLD.question_id;
+
+IF exam_count != 0 THEN
+SIGNAL SQLSTATE "12345"
+ SET MESSAGE_TEXT = "chỉ cho phép người dùng chỉ được update ";
+END IF;
+END $$
+ DELIMITER ;
+ 
+DELIMITER $$
+ CREATE TRIGGER trigger_10_delete
+ BEFORE DELETE ON question
+ FOR EACH ROW
+BEGIN
+DECLARE exam_count INT;
+SELECT COUNT(exam_id) INTO exam_count
+FROM exam_question
+WHERE question_id = OLD.question_id;
+
+IF exam_count != 0 THEN
+SIGNAL SQLSTATE "12345"
+ SET MESSAGE_TEXT = "delete các question khi question đó chưa nằm trong exam nào";
+END IF;
+END $$
+ DELIMITER ;
+-- Question 12: Lấy ra thông tin exam trong đó:
+-- Duration <= 30 thì sẽ đổi thành giá trị "Short time"
+-- 30 < Duration <= 60 thì sẽ đổi thành giá trị "Medium time"
+-- Duration > 60 thì sẽ đổi thành giá trị "Long time"
+-- Question 13: Thống kê số account trong mỗi group và in ra thêm 1 column nữa có tên
+-- là the_number_user_amount và mang giá trị được quy định như sau:
+-- Nếu số lượng user trong group =< 5 thì sẽ có giá trị là few
+-- Nếu số lượng user trong group <= 20 và > 5 thì sẽ có giá trị là normal
+-- Nếu số lượng user trong group > 20 thì sẽ có giá trị là higher
+-- Question 14: Thống kê số mỗi phòng ban có bao nhiêu user, nếu phòng ban nào
+-- không có user thì sẽ thay đổi giá trị 0 thành "Không có User"
 
 
--- Question 3: Tạo view có chứa câu hỏi có những content quá dài (content quá 300 từ
--- được coi là quá dài) và xóa nó đi
-CREATE OR REPLACE VIEW view_03 AS
-SELECT *
-FROM question 
-WHERE CHAR_LENGTH (content) > 300;
-DELETE FROM view_03;
--- Question 4: Tạo view có chứa danh sách các phòng ban có nhiều nhân viên nhất 
-CREATE OR REPLACE VIEW view_04 AS
-SELECT department.*
-FROM department
-LEFT JOIN account USING (department_id)
-GROUP BY department_id
-HAVING COUNT(department_id) = (
-SELECT MAX(account_count)
-FROM(
-     SELECT COUNT(account_id) AS account_count
-     FROM department
-	 LEFT JOIN account USING (department_id)
-     GROUP BY department_id) AS t);
-     -- CTE 
-     WITH c4 AS (
-     SELECT department.*, COUNT(account_id) AS account_count
-     FROM department
-	 LEFT JOIN account USING (department_id)
-     GROUP BY department_id
-     )
-     SELECT *
-     FROM c4
-     WHERE account_count = (
-     SELECT MAX(account_count)
-     FROM c4);
--- Question 5: Tạo view có chứa tất các các câu hỏi do user họ Nguyễn tạo.
-CREATE OR REPLACE VIEW view_05 AS
-SELECT *
-FROM question
-WHERE creator_id = ANY
-(SELECT account_id
-FROM account 
-WHERE full_name LIKE "Nguyen %");
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+              

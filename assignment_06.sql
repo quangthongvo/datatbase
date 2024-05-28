@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS assignment_05;
-CREATE DATABASE assignment_05;
-USE assignment_05;
+DROP DATABASE IF EXISTS assignment_06;
+CREATE DATABASE assignment_06;
+USE assignment_06;
 
 -- Tạo bảng department
 DROP TABLE IF EXISTS department;
@@ -239,98 +239,325 @@ VALUES        (1     , 1   ),
               (8     , 8   ),
               (9     , 2   ),
               (10    , 10  );
-
--- Question 1: Tạo view có chứa danh sách nhân viên thuộc phòng ban sale
-CREATE OR REPLACE VIEW view_01 AS
-SELECT *
-FROM department
-WHERE department_id = (
-SELECT department_id
-FROM department
-WHERE department_name = "sale");
--- Question 2: Tạo view có chứa thông tin các account tham gia vào nhiều group nhất
--- SUBQUERY
-CREATE OR REPLACE VIEW view_02 AS
-SELECT account.*
-FROM account
-LEFT JOIN group_account USING (account_id)
-GROUP BY account_id
-HAVING COUNT(group_id) =
-(
-SELECT MAX(group_count)
-FROM(
-     SELECT COUNT(group_id) AS group_count
-	 FROM account
-     LEFT JOIN group_account USING (account_id)
-     GROUP BY account_id)AS t);
--- CTE
-WITH c2 AS(
-SELECT account.*,COUNT(group_id) AS group_count
-FROM account
-LEFT JOIN group_account USING (account_id)
-GROUP BY account_id
-)
-SELECT *
-FROM c2
-WHERE group_count = (
-SELECT MAX(group_count)
-FROM c2);
-
-
--- Question 3: Tạo view có chứa câu hỏi có những content quá dài (content quá 300 từ
--- được coi là quá dài) và xóa nó đi
-CREATE OR REPLACE VIEW view_03 AS
-SELECT *
-FROM question 
-WHERE CHAR_LENGTH (content) > 300;
-DELETE FROM view_03;
--- Question 4: Tạo view có chứa danh sách các phòng ban có nhiều nhân viên nhất 
-CREATE OR REPLACE VIEW view_04 AS
-SELECT department.*
-FROM department
-LEFT JOIN account USING (department_id)
-GROUP BY department_id
-HAVING COUNT(department_id) = (
-SELECT MAX(account_count)
-FROM(
-     SELECT COUNT(account_id) AS account_count
+-- Question 1: Tạo store để người dùng nhập vào tên phòng ban và in ra tất cả các
+-- account thuộc phòng ban đó.
+DELIMITER $$
+CREATE PROCEDURE sp_01 (IN in_department_name VARCHAR(50))
+BEGIN
+     SELECT*
+     FROM account 
+     WHERE department_01_id = (
+     SELECT department_id
      FROM department
-	 LEFT JOIN account USING (department_id)
-     GROUP BY department_id) AS t);
-     -- CTE 
-     WITH c4 AS (
-     SELECT department.*, COUNT(account_id) AS account_count
-     FROM department
-	 LEFT JOIN account USING (department_id)
-     GROUP BY department_id
-     )
-     SELECT *
-     FROM c4
-     WHERE account_count = (
-     SELECT MAX(account_count)
-     FROM c4);
--- Question 5: Tạo view có chứa tất các các câu hỏi do user họ Nguyễn tạo.
-CREATE OR REPLACE VIEW view_05 AS
+     WHERE department_name = in_department_name);
+END $$
+DELIMITER ;
+CALL sp_01 ("bao ve");
+
+-- cach 2
+DELIMITER $$
+CREATE PROCEDURE sp_01 (IN in_department_name VARCHAR(50))
+BEGIN
+DECLARE v_department_id INT ;
+	 SELECT department_id INTO v_department_id
+	 FROM department
+     WHERE department_name = in_department_name ;
+     
+     SELECT*
+     FROM account 
+     WHERE department_id = v_department_id;
+     
+END $$
+DELIMITER ;
+CALL sp_01 ("bao ve");
+
+-- Question 2: Tạo store để in ra số lượng account trong mỗi group.
+DELIMITER $$
+CREATE PROCEDURE sp_02 (IN in_account_id INT)
+BEGIN
+ SELECT `group`.*, COUNT(account_id) AS account_count
+ FROM `group`
+ LEFT JOIN group_account USING (group_id)
+ GROUP BY group_id;
+ END $$
+ DELIMITER ;
+ CALL sp_02 ();
+ 
+-- Question 3: Tạo store để thống kê mỗi type question có bao nhiêu question được tạo
+-- trong tháng hiện tại.
+DELIMITER $$
+CREATE PROCEDURE sp_03 ()
+BEGIN
+WITH c3 AS (
 SELECT *
 FROM question
-WHERE creator_id = ANY
-(SELECT account_id
-FROM account 
-WHERE full_name LIKE "Nguyen %");
+WHERE MONTH(created_date) = MONTH(CURRENT_DATE)
+AND YEAR(created_date) = YEAR(CURRENT_DATE)
+)
+    SELECT type_question.*, COUNT(question_id) AS question_count
+    FROM type_question
+    LEFT JOIN c3 USING (type_id)
+    GROUP BY type_id;
+END $$
+ DELIMITER ;
+ 
+-- Question 4: Tạo store để trả ra id của type question có nhiều câu hỏi nhất.
+DELIMITER $$
+CREATE FUNCTION fn_04 () RETURNS INT
+BEGIN
+     DECLARE v_type_id INT;
+     WITH c4 AS (
+     SELECT type_question.*, COUNT(question_id) AS question_count
+     FROM type_question
+     LEFT JOIN question USING (type_id)
+     GROUP BY type_id)
+     SELECT type_id INTO v_type_id
+     FROM c4 
+     WHERE question_count = (
+     SELECT MAX(question_count)
+     FROM c4);
+     RETURN v_type_id;
+ END $$
+ DELIMITER ;
+ SET GLOBAL log_bin_trust_function_creators = 1;
+ SELECT fn_04 ();
+    
+-- Question 5: Sử dụng store ở question 4 để tìm ra tên của type question.
+DELIMITER $$
+CREATE FUNCTION fn_05 () RETURNS ENUM("essay", " multiple-choice")
+BEGIN
+    DECLARE v_type_name ENUM("essay", " multiple-choice");
+    SELECT type_name INTO v_type_name
+    FROM type_question
+    WHERE type_id = fn_05();
+    RETURN v_type_name;
+END $$
+ DELIMITER ;
+ SELECT fn_05();
+-- Question 6: Viết 1 store cho phép người dùng nhập vào 1 chuỗi và trả về group có tên
+-- chứa chuỗi của người dùng nhập vào hoặc trả về user có username chứa chuỗi của người dùng nhập vào.
+DELIMITER $$
+CREATE PROCEDURE sp_06 (IN in_search VARCHAR(50))
+BEGIN
+     SELECT 'group' AS type, group_name AS name
+     FROM`group`
+     WHERE group_name LIKE CONCAT("%", in_search ,"%")
+     UNION
+	 SELECT 'account' AS type, username AS name
+     FROM account
+     WHERE username LIKE CONCAT("%", in_search ,"%");
+END $$
+ DELIMITER ;
+ CALL sp_06("g");
 
+-- Question 7: Viết 1 store cho phép người dùng nhập vào thông tin fullName, email và trong store sẽ tự động gán:
+-- username sẽ giống email nhưng bỏ phần @..mail đi
+-- positionID: sẽ có default là developer
+-- departmentID: sẽ được cho vào 1 phòng chờ
+ -- Sau đó in ra kết quả tạo thành công
+DROP PROCEDURE IF EXISTS sp_07;
+DELIMITER $$
+CREATE PROCEDURE sp_07 (IN in_full_name VARCHAR(50),IN in_email VARCHAR(50))
+BEGIN
+DECLARE v_username VARCHAR(50);
+DECLARE v_position_id INT;
+DECLARE v_department_id INT;
+-- username sẽ giống email nhưng bỏ phần @..mail đi
+SELECT SUBSTRING_INDEX(in_email,"@",1) INTO v_username;
+-- positionID: sẽ có default là developer
+SELECT position_id INTO v_position_id
+FROM position
+WHERE position_name = "dev";
+-- departmentID: sẽ được cho vào 1 phòng chờ
+SELECT department_id INTO v_department_id
+FROM department
+WHERE department_name = "phong cho";
+INSERT INTO account ( email    , username , full_name  , department_id , position_id)
+VALUES              (in_email  ,v_username,in_full_name,v_department_id,v_position_id);
+-- Sau đó in ra kết quả tạo thành công
+SELECT*
+FROM account
+WHERE username = v_username;
 
+END $$
+ DELIMITER ;
+ CALL sp_07("ngo ba kha" , "dapphatchetngay@gmail.com" );
 
+-- Question 8: Viết 1 store cho phép người dùng nhập vào Essay hoặc Multiple-Choice
+-- để thống kê câu hỏi essay hoặc multiple-choice nào có content dài nhất
+DROP PROCEDURE IF EXISTS sp_08;
+DELIMITER $$
+CREATE PROCEDURE sp_08 (IN in_type_name ENUM("essay","multiple-choice"))
+BEGIN
+WITH c2 AS (
+SELECT *, CHAR_LENGTH(content) AS content_length
+FROM question
+WHERE type_id =
+(SELECT type_id
+ FROM type_question
+ WHERE type_name = in_type_name)
+ )
+ SELECT *
+ FROM c2
+ WHERE content_length =(
+ SELECT MAX(content_length)
+ FROM c2);
+END $$
+ DELIMITER ;
+CALL sp_08("multiple-choice");
+-- Question 9: Viết 1 store cho phép người dùng xóa exam dựa vào ID
+DROP PROCEDURE IF EXISTS sp_09;
+DELIMITER $$
+CREATE PROCEDURE sp_09 (IN in_exam_id INT)
+BEGIN
+DELETE FROM exam
+WHERE exam_id = in_exam_id;
 
+END $$
+ DELIMITER ;
+ CALL sp_09(1);
+-- Question 10: Tìm ra các exam được tạo từ 3 năm trước và xóa các exam đó đi (sử
+-- dụng store ở câu 9 để xóa)
+-- Sau đó in số lượng record đã remove từ các table liên quan trong khi
+-- removing
+DROP PROCEDURE IF EXISTS sp_10;
+DELIMITER $$
+CREATE PROCEDURE sp_10 ()
+BEGIN
+DECLARE v_removed_exam_question INT;
+DECLARE v_removed_exam INT;
 
+SELECT COUNT(exam_id) INTO v_removed_exam
+FROM question 
+WHERE created_date < CURRENT_DATE - INTERVAL 3 YEAR;
 
+SELECT COUNT(exam_id) INTO v_removed_exam_question
+FROM exam_question
+INNER JOIN exam USING (exam_id)
+WHERE created_date < CURRENT_DATE - INTERVAL 3 YEAR;
+ 
+ DELETE FROM exam
+ WHERE created_date < CURRENT_DATE - INTERVAL 3 YEAR;
+ 
+ SELECT CONCAT(" so ban ghi bi xoa : ",v_removed_exam + v_removed_exam_question) AS message ;
+END $$
+ DELIMITER ;
+CALL sp_10();
+-- Question 11: Viết store cho phép người dùng xóa phòng ban bằng cách người dùng
+-- nhập vào tên phòng ban và các account thuộc phòng ban đó sẽ được
+-- chuyển về phòng ban default là phòng ban chờ việc
 
+DROP PROCEDURE IF EXISTS sp_11;
+DELIMITER $$
+CREATE PROCEDURE sp_11 (IN in_department_name VARCHAR(50))
+BEGIN
+DECLARE v_from_department_id INT;
+DECLARE v_to_department_id INT;
 
+SELECT department_id INTO v_from_department_id
+FROM department
+WHERE department_name = in_department_name;
 
+SELECT department_id INTO v_to_department_id
+FROM department
+WHERE department_name = "phong cho";
 
+SELECT department_id INTO v_to_department_id
+FROM department
+WHERE department_name = in_department_name;
 
+UPDATE account
+SET department_id = v_to_department_id
+WHERE department_id = v_from_department_id;
 
+DELETE FROM department
+WHERE department_id = v_from_department_id;
 
+END $$
+ DELIMITER ;
+ CALL sp_11("sale");
+-- Question 12: Viết store để in ra mỗi tháng có bao nhiêu câu hỏi được tạo trong năm nay
+WITH c1 AS (
+SELECT 1 AS month
+UNION
+SELECT 2 AS month
+UNION
+SELECT 3 AS month
+UNION
+SELECT 4 AS month
+UNION
+SELECT 5 AS month
+UNION
+SELECT 6 AS month
+UNION
+SELECT 7 AS month
+UNION
+SELECT 8 AS month
+UNION
+SELECT 9 AS month
+UNION
+SELECT 10 AS month
+UNION
+SELECT 11 AS month
+UNION
+SELECT 12 AS month
+), c2 AS (
+SELECT *, MONTH(created_date) AS month
+FROM question
+WHERE YEAR(created_date) = 2020
+)
+SELECT month, COUNT(question_id) AS question_count
+FROM c1
+LEFT JOIN c2 USING (month)
+GROUP BY month;
 
+-- Question 13: Viết store để in ra mỗi tháng có bao nhiêu câu hỏi được tạo trong 6 
+-- tháng gần đây nhất
+-- (Nếu tháng nào không có thì sẽ in ra là "không có câu hỏi nào trong tháng")
+SELECT 
+       YEAR(CURRENT_DATE - INTERVAL 1 MONTH) AS year,
+       MONTH(CURRENT_DATE - INTERVAL 1 MONTH) AS month
+UNION
+SELECT 
+       YEAR(CURRENT_DATE - INTERVAL 2 MONTH) AS year,
+       MONTH(CURRENT_DATE - INTERVAL 2 MONTH) AS month
+UNION
+SELECT 
+       YEAR(CURRENT_DATE - INTERVAL 3 MONTH) AS year,
+       MONTH(CURRENT_DATE - INTERVAL 3 MONTH) AS month
+UNION
+SELECT 
+       YEAR(CURRENT_DATE - INTERVAL 4 MONTH) AS year,
+       MONTH(CURRENT_DATE - INTERVAL 4 MONTH) AS month
+UNION
+SELECT 
+       YEAR(CURRENT_DATE - INTERVAL 5 MONTH) AS year,
+       MONTH(CURRENT_DATE - INTERVAL 5 MONTH) AS month
+UNION
+SELECT 
+       YEAR(CURRENT_DATE - INTERVAL 6 MONTH) AS year,
+       MONTH(CURRENT_DATE - INTERVAL 6 MONTH) AS month;
+
+WITH RECURSIVE c1 (n) AS (
+	SELECT CURRENT_DATE - INTERVAL 1 MONTH
+    UNION
+    SELECT n - INTERVAL 1 MONTH FROM c1 WHERE n > CURRENT_DATE - INTERVAL 6 MONTH
+), c2 AS (
+	SELECT YEAR(n) AS year, MONTH(n) AS month
+    FROM c1
+), c3 AS (
+	SELECT *, YEAR(created_date) AS year, MONTH(created_date) AS month
+	FROM question
+)
+SELECT year, month,
+	IF(
+		COUNT(question_id) = 0,
+		"không có câu hỏi nào trong tháng",
+		COUNT(question_id)
+    ) AS question_count
+FROM c2
+LEFT JOIN c3 USING (year, month)
+GROUP BY year, month;
 
 
 
