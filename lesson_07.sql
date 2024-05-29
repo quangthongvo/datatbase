@@ -50,10 +50,30 @@ VALUE (5, 1, "4000-04_04");
 -- hien thi danh sach trigger
 SHOW TRIGGERS;
 
-
-
-
-
-
+-- CASE WHEN
+SELECT *,
+     CASE
+         WHEN duration <= 45 THEN "short time" -- duration <= 45
+         WHEN duration <= 100 THEN " medium time" -- 45 < duration <=100
+         ELSE "long time" -- duration >100
+         
+     END AS duration_type
+     FROM exam;
+     
+     
+-- INDEX : danh chi muc
+CREATE INDEX index_name 
+ON department (department_name);
+--
+CREATE INDEX index_email_username
+ON account (email,username);
+-- 
+SELECT *
+FROM department
+WHERE department_name = "sale";
+-- xoa index
+DROP INDEX index_name ON department;
+--
+SHOW INDEX FROM department;
 
 

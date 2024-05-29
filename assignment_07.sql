@@ -294,9 +294,9 @@ DROP TRIGGER IF EXISTS trigger_03;
  END $$
  DELIMITER ;
 -- Question 4: Cấu hình 1 bài thi có nhiều nhất là 10 Question
-DROP TRIGGER IF EXISTS trigger_03;
+DROP TRIGGER IF EXISTS trigger_04;
  DELIMITER $$
- CREATE TRIGGER trigger_03
+ CREATE TRIGGER trigger_04
  BEFORE INSERT ON exam_question
  FOR EACH ROW
  BEGIN
@@ -306,7 +306,7 @@ DROP TRIGGER IF EXISTS trigger_03;
   WHERE exam_id = NEW.exam_id;
   IF v_question_count >= 10 THEN
  SIGNAL SQLSTATE "12345"
-   SET MESSAGE_TEXT = " moi bai thi cos nhieu nhat 10 question";
+   SET MESSAGE_TEXT = " moi bai thi co nhieu nhat 10 question";
  END IF;
  END $$
  DELIMITER ;
@@ -355,22 +355,22 @@ DROP TRIGGER IF EXISTS trigger_07;
  BEFORE INSERT ON answer
  FOR EACH ROW
 BEGIN
- DECLARE answer_count INT;
- DECLARE correct_answer_count INT;
- SELECT COUNT(answer_id) INTO answer_count
+ DECLARE v_answer_count INT;
+ DECLARE v_correct_answer_count INT;
+ SELECT COUNT(answer_id) INTO v_answer_count
  FROM answer
  WHERE question_id = NEW.question_id;
  
- IF answer_count >= 4 THEN
+ IF v_answer_count >= 4 THEN
  SIGNAL SQLSTATE "12345"
  SET MESSAGE_TEXT = "cho phép user tạo tối đa 4 answers";
    END IF;
    
- SELECT COUNT(answer_id) INTO correct_answer_count
+ SELECT COUNT(answer_id) INTO v_correct_answer_count
  FROM answer
  WHERE question_id = NEW.question_id AND is_correct = TRUE;
  
- IF correct_answer_count >= 2 THEN
+ IF v_correct_answer_count >= 2 THEN
  SIGNAL SQLSTATE "12345"
  SET MESSAGE_TEXT = "tối đa 2 đáp án đúng ";
 END IF;
@@ -403,18 +403,18 @@ DROP TRIGGER IF EXISTS trigger_10_update;
  BEFORE UPDATE ON question
  FOR EACH ROW
 BEGIN
-DECLARE exam_count INT;
-SELECT COUNT(exam_id) INTO exam_count
+DECLARE v_exam_count INT;
+SELECT COUNT(exam_id) INTO v_exam_count
 FROM exam_question
 WHERE question_id = OLD.question_id;
 
-IF exam_count != 0 THEN
+IF v_exam_count != 0 THEN
 SIGNAL SQLSTATE "12345"
- SET MESSAGE_TEXT = "chỉ cho phép người dùng chỉ được update ";
+ SET MESSAGE_TEXT = "co de thi dang su dung cau hoi nay ";
 END IF;
 END $$
  DELIMITER ;
- 
+ DROP TRIGGER IF EXISTS trigger_10_delete;
 DELIMITER $$
  CREATE TRIGGER trigger_10_delete
  BEFORE DELETE ON question
@@ -435,13 +435,76 @@ END $$
 -- Duration <= 30 thì sẽ đổi thành giá trị "Short time"
 -- 30 < Duration <= 60 thì sẽ đổi thành giá trị "Medium time"
 -- Duration > 60 thì sẽ đổi thành giá trị "Long time"
+SELECT *,
+CASE 
+    WHEN duration <= 30 THEN "short time"
+    WHEN duration <= 60 THEN "medium time"
+    ELSE "long time"
+END AS duration_type
+FROM exam;
 -- Question 13: Thống kê số account trong mỗi group và in ra thêm 1 column nữa có tên
 -- là the_number_user_amount và mang giá trị được quy định như sau:
 -- Nếu số lượng user trong group =< 5 thì sẽ có giá trị là few
 -- Nếu số lượng user trong group <= 20 và > 5 thì sẽ có giá trị là normal
 -- Nếu số lượng user trong group > 20 thì sẽ có giá trị là higher
+
+SELECT `group`.*,COUNT(account_id) AS account_count,
+CASE 
+    WHEN COUNT(account_id) <= 5 THEN "few"
+    WHEN COUNT(account_id) <= 20 THEN "normal"
+    ELSE "higher"
+    END AS  the_number_user_amount
+FROM `group`
+LEFT JOIN group_account USING (group_id)
+GROUP BY group_id;
+-- CTE
+WITH c_13 AS (
+SELECT `group`.*,COUNT(account_id) AS account_count
+FROM `group`
+LEFT JOIN group_account USING (group_id)
+GROUP BY group_id
+)
+SELECT *,
+CASE 
+    WHEN account_count <= 5 THEN "few"
+    WHEN account_count <= 20 THEN "normal"
+    ELSE "higher"
+    END AS  the_number_user_amount
+FROM c_13;
+
 -- Question 14: Thống kê số mỗi phòng ban có bao nhiêu user, nếu phòng ban nào
 -- không có user thì sẽ thay đổi giá trị 0 thành "Không có User"
+WITH c_14 AS (
+SELECT department.*,COUNT(account_id) AS account_count
+FROM department
+LEFT JOIN account USING (department_id)
+GROUP BY department_id
+)
+SELECT *,
+ CASE 
+     WHEN account_count = 0 THEN " khong co user"
+     ELSE account_count
+
+ END AS account_number
+ FROM c_14;
+    
+    
+    
 
 
-              
+		
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
